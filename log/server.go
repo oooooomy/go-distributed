@@ -26,13 +26,12 @@ func (fl fileLog) Write(data []byte) (int, error) {
 }
 
 func Run(destination string) {
-	syslog.New(fileLog(destination), "Gym", syslog.LstdFlags)
+	log = syslog.New(fileLog(destination), "LogService: ", syslog.LstdFlags)
 }
 
 func RegisterHandler() {
 	http.HandleFunc("/log", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
-
 		//http post request
 		case http.MethodPost:
 			bytes, err := ioutil.ReadAll(r.Body)
@@ -41,13 +40,13 @@ func RegisterHandler() {
 				return
 			}
 			write(string(bytes))
-
-		case http.MethodGet:
-
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
 		}
 	})
 }
 
 func write(message string) {
-	log.Println(message)
+	log.Printf("%v\n", message)
 }
