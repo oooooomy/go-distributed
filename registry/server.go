@@ -9,8 +9,8 @@ import (
 
 const (
 	//ServerPort 注册中心地址
-	ServerPort  = "3000"
-	ServicesURL = "http://localhost:" + ServerPort + "/services"
+	ServerPort  = ":3000"
+	ServicesURL = "http://localhost" + ServerPort + "/services"
 )
 
 type registry struct {
