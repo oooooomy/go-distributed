@@ -4,4 +4,4 @@
 
 #### 注册中心
 
-- [Bilibili 课程地址]: https://www.bilibili.com/video/BV1ZU4y1577q
+[Bilibili 课程地址]: https://www.bilibili.com/video/BV1ZU4y1577q
