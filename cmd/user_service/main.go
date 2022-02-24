@@ -3,29 +3,28 @@ package main
 import (
 	"context"
 	"fmt"
-	"go-distributed/log"
 	"go-distributed/registry"
 	"go-distributed/service"
+	"go-distributed/user"
 	syslog "log"
 )
 
 func main() {
-	log.Run("./system.log")
-	host, port := "localhost", "4000"
+	host, port := "localhost", "8080"
 	serviceURL := fmt.Sprintf("http://%s:%v", host, port)
 
 	r := registry.Registration{
-		ServiceName: registry.LogServiceName,
+		ServiceName: registry.UserServiceName,
 		ServiceURL:  serviceURL,
 	}
 
 	ctx, err := service.Start(
-		context.Background(), host, port, r, log.RegisterHandler,
+		context.Background(), host, port, r, user.RegisterHandler,
 	)
 
 	if err != nil {
 		syslog.Fatalln(err)
 	}
 	<-ctx.Done()
-	fmt.Println("Shutting down log service.")
+	fmt.Println("Shutting down user service.")
 }

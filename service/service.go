@@ -14,6 +14,7 @@ func Start(ctx context.Context, host, port string, registration registry.Registr
 
 	//启动客户端的web服务
 	registerHandlersFunc()
+
 	ctx = startService(ctx, registration.ServiceName, host, port)
 	//客户端将自己注册到注册中心
 	err := registry.RegisterService(registration)

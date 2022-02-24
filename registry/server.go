@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -38,12 +39,39 @@ func (r *registry) remove(url string) error {
 	for i := range r.registrations {
 		if r.registrations[i].ServiceURL == url {
 			r.mutex.Lock()
-			r.registrations = append(reg.registrations[:i], r.registrations[:i+1]...)
+			r.registrations = append(reg.registrations[:i], r.registrations[i+1:]...)
 			r.mutex.Unlock()
 			return nil
 		}
 	}
 	return fmt.Errorf("service at URL %s not found", url)
+}
+
+func (r *registry) sendRequiredServices(reg Registration) error {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	var p patch
+	for _, serviceReg := range r.registrations {
+		for _, serviceRequired := range reg.RequiredServices {
+			if serviceReg.ServiceName == serviceRequired {
+				p.Added = append(p.Added, patchEntry{
+					Name: serviceReg.ServiceName,
+					URL:  serviceReg.ServiceURL})
+			}
+		}
+	}
+
+	return r.sendPatch(p, reg.ServiceUpdateURL)
+}
+
+func (r *registry) sendPatch(p patch, url string) error {
+	marshal, err := json.Marshal(p)
+	if err != nil {
+		return err
+	}
+	_, err = http.Post(url, "application/json", bytes.NewBuffer(marshal))
+	return err
 }
 
 type Service struct{}
