@@ -2,6 +2,8 @@ package registry
 
 import (
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"sync"
@@ -15,9 +17,15 @@ const (
 
 type registry struct {
 	registrations []Registration
-	mutex         *sync.Mutex
+	mutex         *sync.RWMutex
 }
 
+var reg = registry{
+	registrations: make([]Registration, 0),
+	mutex:         new(sync.RWMutex),
+}
+
+// 添加服务数据
 func (r *registry) add(reg Registration) error {
 	r.mutex.Lock()
 	r.registrations = append(r.registrations, reg)
@@ -25,17 +33,27 @@ func (r *registry) add(reg Registration) error {
 	return nil
 }
 
-var reg = registry{
-	registrations: make([]Registration, 0),
-	mutex:         new(sync.Mutex),
+// 删除服务数据
+func (r *registry) remove(url string) error {
+	for i := range r.registrations {
+		if r.registrations[i].ServiceURL == url {
+			r.mutex.Lock()
+			r.registrations = append(reg.registrations[:i], r.registrations[:i+1]...)
+			r.mutex.Unlock()
+			return nil
+		}
+	}
+	return fmt.Errorf("service at URL %s not found", url)
 }
 
 type Service struct{}
 
-//ServeHTTP 注册服务
+//ServeHTTP 注册中心提供的HTTP接口
 func (s Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Println("Request received")
 	switch r.Method {
+
+	//注册服务
 	case http.MethodPost:
 		decoder := json.NewDecoder(r.Body)
 		var r Registration
@@ -52,6 +70,24 @@ func (s Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+
+	//删除服务
+	case http.MethodDelete:
+		data, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			log.Println(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		url := string(data)
+		err = reg.remove(url)
+		if err != nil {
+			log.Println(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		log.Printf("Remove service at URL: %s\n", url)
+
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return

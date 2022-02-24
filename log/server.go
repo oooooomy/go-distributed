@@ -26,7 +26,7 @@ func (fl fileLog) Write(data []byte) (int, error) {
 }
 
 func Run(destination string) {
-	log = syslog.New(fileLog(destination), "LogService: ", syslog.LstdFlags)
+	log = syslog.New(fileLog(destination), "[ LogService ]: ", syslog.LstdFlags)
 }
 
 func RegisterHandler() {

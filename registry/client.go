@@ -29,3 +29,20 @@ func RegisterService(r Registration) error {
 
 	return nil
 }
+
+// ShutdownService 客户端调用注销服务
+func ShutdownService(url string) error {
+	request, err := http.NewRequest(http.MethodDelete, ServicesURL, bytes.NewBuffer([]byte(url)))
+	if err != nil {
+		return err
+	}
+	request.Header.Add("Content-Type", "text/plain")
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return err
+	}
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to remove service with code %v", response.StatusCode)
+	}
+	return nil
+}
