@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"sync"
@@ -106,10 +107,15 @@ func (p *providers) Update(pat patch) {
 
 }
 
-func (p *providers) get(name ServiceName) ([]string, error) {
+func (p *providers) get(name ServiceName) (string, error) {
 	services, ok := p.services[name]
 	if !ok {
-		return nil, fmt.Errorf("no providers available for serive %v", name)
+		return "", fmt.Errorf("no providers available for serive %v", name)
 	}
-	return services, nil
+	idx := int(rand.Float32() * float32(len(services)))
+	return services[idx], nil
+}
+
+func GetProvider(name ServiceName) (string, error) {
+	return prov.get(name)
 }

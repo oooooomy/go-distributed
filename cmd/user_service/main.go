@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"go-distributed/log"
 	"go-distributed/registry"
 	"go-distributed/service"
 	"go-distributed/user"
@@ -14,8 +15,10 @@ func main() {
 	serviceURL := fmt.Sprintf("http://%s:%v", host, port)
 
 	r := registry.Registration{
-		ServiceName: registry.UserServiceName,
-		ServiceURL:  serviceURL,
+		ServiceName:      registry.UserServiceName,
+		ServiceURL:       serviceURL,
+		RequiredServices: []registry.ServiceName{registry.LogServiceName},
+		ServiceUpdateURL: serviceURL + "/services",
 	}
 
 	ctx, err := service.Start(
@@ -25,6 +28,12 @@ func main() {
 	if err != nil {
 		syslog.Fatalln(err)
 	}
+
+	if logProvider, err := registry.GetProvider(registry.LogServiceName); err == nil {
+		fmt.Println("Logging service found at ", logProvider)
+		log.SetClientLogger(logProvider, r.ServiceName)
+	}
+
 	<-ctx.Done()
 	fmt.Println("Shutting down user service.")
 }
