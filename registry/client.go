@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -37,24 +36,6 @@ func RegisterService(r Registration) error {
 	}
 
 	return nil
-}
-
-type serviceUpdateHandler struct{}
-
-func (s serviceUpdateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	decoder := json.NewDecoder(r.Body)
-	var p patch
-	err := decoder.Decode(&p)
-	if err != nil {
-		log.Println(err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	prov.Update(p)
 }
 
 // ShutdownService 客户端调用注销服务

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"sync"
@@ -31,13 +30,30 @@ func (r *registry) add(reg Registration) error {
 	r.mutex.Lock()
 	r.registrations = append(r.registrations, reg)
 	r.mutex.Unlock()
-	return nil
+	err := r.sendRequiredServices(reg)
+	r.notify(patch{
+		Added: []patchEntry{
+			{
+				Name: reg.ServiceName,
+				URL:  reg.ServiceURL,
+			},
+		},
+	})
+	return err
 }
 
 // 删除服务数据
 func (r *registry) remove(url string) error {
 	for i := range r.registrations {
 		if r.registrations[i].ServiceURL == url {
+			r.notify(patch{
+				Removed: []patchEntry{
+					{
+						Name: r.registrations[i].ServiceName,
+						URL:  r.registrations[i].ServiceURL,
+					},
+				},
+			})
 			r.mutex.Lock()
 			r.registrations = append(reg.registrations[:i], r.registrations[i+1:]...)
 			r.mutex.Unlock()
@@ -74,50 +90,38 @@ func (r *registry) sendPatch(p patch, url string) error {
 	return err
 }
 
-type Service struct{}
+// 通知服务变化
+func (r *registry) notify(fullPatch patch) {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
 
-//ServeHTTP 注册中心提供的HTTP接口
-func (s Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Println("Request received")
-	switch r.Method {
+	// 遍历依赖项
+	for _, reg := range r.registrations {
+		go func(reg Registration) {
+			for _, reqService := range reg.RequiredServices {
+				p := patch{Added: []patchEntry{}, Removed: []patchEntry{}}
+				sendUpdate := false
+				for _, added := range fullPatch.Added {
+					if added.Name == reqService {
+						p.Added = append(p.Added, added)
+						sendUpdate = true
+					}
+				}
+				for _, removed := range fullPatch.Removed {
+					if removed.Name == reqService {
+						p.Removed = append(p.Removed, removed)
+						sendUpdate = true
+					}
+				}
+				if sendUpdate {
+					err := r.sendPatch(p, reg.ServiceUpdateURL)
+					if err != nil {
+						log.Println(err)
+						return
+					}
+				}
 
-	//注册服务
-	case http.MethodPost:
-		decoder := json.NewDecoder(r.Body)
-		var r Registration
-		err := decoder.Decode(&r)
-		if err != nil {
-			log.Println(err)
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		log.Printf("Add new service: %v with URL: %s\n", r.ServiceName, r.ServiceURL)
-		err = reg.add(r)
-		if err != nil {
-			log.Println(err)
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-
-	//删除服务
-	case http.MethodDelete:
-		data, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			log.Println(err)
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		url := string(data)
-		err = reg.remove(url)
-		if err != nil {
-			log.Println(err)
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		log.Printf("Remove service at URL: %s\n", url)
-
-	default:
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
+			}
+		}(reg)
 	}
 }
